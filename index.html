@@ -11,99 +11,28 @@
   <script src="formtest2.js" type="text/javascript" ></script>
   <script src="formtest3.js" type="text/javascript" ></script>
 
-  <!-- <script src="fields/fields.js" type="text/babel" ></script> -->
-  <script type="text/babel" >
-    
-    /**
-     * 
-     * 
-     * CAMPOS PROGRAMADOS
-     * 
-     * 
-     * */
+  <script src="components/Form.js" type="text/babel" ></script>
+  <script src="components/Step.js" type="text/babel" ></script>
+  <script src="components/Block.js" type="text/babel" ></script>
+  <script src="components/Field.js" type="text/babel" ></script>
 
-     class CampoLavel extends React.Component {
-      constructor(props) {
-        super(props)
-        this.state = {}
-      }
-      render(){
-        const { value } = this.props;
-        return (
-          <div> <label> {value} </label> </div>
-        )
-      }
-
-    }
-
-     class CampoSelect extends React.Component {
-      constructor(props) {
-        super(props)
-        this.state = {}
-      }
-      render(){
-
-        const { options = [], value, onChange, isReady } = this.props;
- 
-        return (
-          <select className={"form-control selectpicker" + (!isReady ? ' is-invalid':'') } data-style="btn-select-drop" value={value} onChange={onChange} data-width="100%" >
-            { options.map( o => <option key={o.value} value={o.value} > {o.label} </option> ) }
-          </select>
-        )
-      }
-
-    }
-
-    class CampoNumber extends React.Component {
-      constructor(props) {
-        super(props);
-        this.state = {};
-      }
-      render(){
-        const { value, onChange, isReady } = this.props;
-        return (
-          <input type="number" className={"form-control" + (!isReady ? ' is-invalid':'') } value={value} onChange={onChange} />
-        )
-      }
-
-    }
-
-    class CampoRadios extends React.Component {
-      constructor(props) {
-        super(props)
-        this.state = {}
-      }
-      render(){
-
-        const { options = [], value, onChange, nombre, isReady } = this.props;
-        const nameId = nombre.replace(/[^a-zA-Z]+/g,''); //cuidado cuando empiece con numero
-
-        return (
-          <div className={"radiosContainer form-control" + (!isReady ? ' is-invalid':'') } >
-            { options.map( o => {
-              return (
-                <div className="custom-control custom-radio custom-control-inline" key={nameId+o.value}>
-                  <input 
-                    type="radio"
-                    className={"custom-control-input"}
-                    id={nameId+o.value} 
-                    name={nameId} 
-                    value={o.value} 
-                    onChange={onChange}
-                    selected={ o.value === value } 
-                  />
-                  <label className="custom-control-label" htmlFor={nameId+o.value}> {o.label} </label>
-                </div>
-              )
-            } ) }
-          </div>
-        )
-      }
-
-    }
-  </script>
+  <script src="fields/fields.js" type="text/babel" ></script>
 
   <link rel="stylesheet" href="css/bootstrap.min.css" >
+
+  <style type="text/css">
+    #jsonContainer {
+      width: 100%;
+      height: 100vh;
+    }
+
+    #jsonContainer:focus {
+      outline: none !important;
+      border: 1px solid black;
+      box-shadow: 0 0 10px whitesmoke;
+    }
+
+  </style>
 
 </head>
 <body>
@@ -119,11 +48,21 @@
     </div>
 
     <div class="row">
-      <div class="col-md-4">
-        <pre id="jsonContainer"></pre>
+      <div class="col-md-5">
+        <textarea id="jsonContainer" spellcheck="false" ></textarea>
       </div>
-      <div class="col-md-8">
-        <div id="formContainer"></div>      
+      <div class="col-md-7">
+        <div id="controls">
+          <div class="custom-control custom-checkbox">
+              <input type="checkbox" class="custom-control-input" id="debugCheck">
+              <label class="custom-control-label" for="debugCheck">Debug</label>
+          </div>
+        </div>
+
+
+        <div id="formContainer"></div>
+
+
       </div>
     </div>
 
@@ -132,384 +71,91 @@
  
   <!-- <script src="bin.js" type="text/javascript" ></script> -->
 
+  <script type="text/javascript">
+    //GLOBALS
+    var formsArr = [formtest1,formtest2,formtest3];
+    var activeForm = formtest1.formulario;
+
+    var debug = !!document.getElementById("debugCheck").checked;
+
+  </script>
+
+
   <script type="text/babel">
 
-    class Formulario extends React.Component {
-      constructor(props) {
-        super(props)
-
-        var formulario = props.formulario;
-        //calcular isVisible y isRequired antes de la primera renderizacion del formulario
-        formulario.pasos.forEach( paso => {
-          paso.bloques.forEach( bloque => {
-            bloque.campos.forEach( campoVerificar => {
-              var validationVisible = this.validarCondicional(formulario, campoVerificar, 'visible' );
-              var validationRequired = this.validarCondicional(validationVisible.formulario, campoVerificar, 'required' );
-              formulario = validationRequired.formulario
-            } )
-          } )
-        } )
-
-        this.state = {
-          formulario : formulario,
-          position : 1
-        }
-
-      }
-
-      onChangeCampo = (campoModificado ) => {
-        //console.log('form change campo', campo);
-
-        const formulario = this.state.formulario;
-
-        var validationVisible = this.validarCondicional(formulario, campoModificado, 'visible' );
-
-        var validationRequired = this.validarCondicional(validationVisible.formulario, campoModificado, 'required' );
-        
-        if( validationVisible.updated || validationRequired.updated){
-          this.setState( { formulario : validationRequired.formulario })
-        }
-
-
-      }
-
-      //retorna .updated true cuando hay cambios y .updated false cuando nada cambia
-      validarCondicional(formulario, campoModificado, tipoCondicional){ //recive el campo modificado, y el tipo de condicional
-        
-        const tipos = {
-            required : { keyCampo : 'required', keyVerificado : 'isRequired' },
-            visible : { keyCampo : 'visible', keyVerificado : 'isVisible' }
-        }
-
-        //buscar si se encuentra en los requiere de los otros campos
-        var updated = false;
-        //const formulario = this.state.formulario;
-        try {
-          formulario.pasos.forEach( paso => {
-
-            //VISIVILIDAD DEL PASO
-            if( tipoCondicional == 'visible' && paso.visible ){
-              if( paso.visible.idUnidadCampo === campoModificado.idUnidadCampo ){
-                
-                //TODO: configurar keyCondicional y keyVerificado igual que los campos
-                let prev = paso.isVisible;
-                paso.isVisible = evalCondicional(paso.visible, campoModificado);
-
-                if( prev != paso.isVisible ){
-                  updated = true;
-                }
-
-              }
-            }
-
-            paso.bloques.forEach( bloque => {
-              bloque.campos.forEach( campoVerificar => {
-                
-                //VISIBILIDAD DE LOS CAMPOS
-                var keyCondicional = tipos[tipoCondicional].keyCampo; // required o visible
-                var keyVerificado = tipos[tipoCondicional].keyVerificado; // isRequired o isVisible
-
-                var prev = campoVerificar[keyVerificado];
-                if( campoVerificar[keyCondicional].idUnidadCampo === campoModificado.idUnidadCampo ){
-                  
-                  campoVerificar[keyVerificado] = evalCondicional(campoVerificar[keyCondicional], campoModificado)
-
-                }
-                
-                //QUE SEA VALIDO CUANDO ES REQUERIDO
-                var prevIsReady = campoVerificar.isReady;
-                campoVerificar.isReady = true;
-                if( campoVerificar.isVisible !== false && campoVerificar.isRequired ){ //visible, obligatorio y validado como faltante
-
-                  //cuando ya se valido que faltaba o el elemento no se a tocado, y el valor es invalido o no se ha seleccionado un select
-                  if( (!prevIsReady || typeof campoVerificar._value != 'undefined') && !campoVerificar._value || campoVerificar._value == "-1" ){ // -1 cuando los select no se han seleccionado
-                    
-                    campoVerificar.isReady = false;
-                    
-                  }
-                }
-
-                //optimizacion para no renderizar todo el formulario cuando no hay cambios
-                if( prev !== campoVerificar[keyVerificado] || prevIsReady !== campoVerificar.isReady){
-                  console.log(campoVerificar.nombre, '-'+keyCondicional+' when-', campoModificado.nombre, campoVerificar[keyCondicional].when, ' ~ ', campoVerificar[keyCondicional].value);
-                  updated = true;
-                }
-
-              } )
-            } )
-          } )
-        } catch (error) { console.log(error); }
-        
-
-        return { updated, formulario };
-
-      }
-
-      componentDidMount() {
-        console.log( 'this.state.formulario', this.state.formulario );
-      }
-
-      validateRequired = () => {
-        const formulario = this.props.formulario;
-
-        //VALIDAR QUE LOS REQUIRE ESTEN INGRESADOS
-        var ready = true;
-        formulario.pasos.forEach( paso => {
-          paso.bloques.forEach( bloque => {
-            bloque.campos.forEach( campoVerificar => {
-              campoVerificar.isReady = true;
-              if( campoVerificar.isVisible !== false && campoVerificar.isRequired ){ //visible y obligatorio
-                if( !campoVerificar._value || campoVerificar._value == "-1" ){ // -1 cuando los select no se han seleccionado
-                  ready = false;
-                  campoVerificar.isReady = false;
-                }
-              }
-              //console.log( 'required', campoVerificar.nombre, campoVerificar.isRequired, campoVerificar._value, !campoVerificar._value || campoVerificar._value == "-1" );
-            } )
-          } )
-        } )
-
-        return { ready, formulario }
-
-      }
-
-      goPrev = () => {
-        this.setState( { position : this.state.position - 1 } ) ;
-      }
-      goNext = () => {
-
-        const { ready, formulario } = this.validateRequired();
-
-        this.setState( { position : ready ? this.state.position + 1 : this.state.position, formulario : formulario } ) ;
-
-      }
-      goFinish = () => {
-
-        const { ready, formulario } = this.validateRequired();
-
-        if( ready ){
-          alert('fin');  
-        }else{
-          this.setState( { formulario : formulario } ) ;
-        }
-
-      }
-
-
-      render() {
-        const pasos = this.state.formulario.pasos;
-        const position = this.state.position;
-
-        const paso = pasos.find( p => p.position === position );
-
-        var pasoNext = null;
-        var pasoPrev = null;
-        var count = 0;
-        while( pasoNext === null ){
-          count++;
-          pasoNext = pasos.find( p => p.position === position + count );
-          if( !!pasoNext && pasoNext.isVisible === false && count < 500) {
-            pasoNext = null;
-          }
-        }
-        count = 0;
-        while( pasoPrev === null ){
-          count--;
-          pasoPrev = pasos.find( p => p.position === position + count );
-          if( !!pasoPrev && pasoPrev.isVisible === false && count > -500) {
-            pasoPrev = null;
-          }
-        }
-
-        return (
-          <div>
-            <h1> {this.state.formulario.nombre}</h1>
-            <div className="container"> 
-              { /*pasos.map( paso =>  <Paso key={paso.idFormulariosHasPasos} paso={paso} onChangeCampo={this.onChangeCampo} /> )*/}
-              { <Paso key={paso.idFormulariosHasPasos} paso={paso} onChangeCampo={this.onChangeCampo} /> }
-            </div>
-
-            <div className="buttons" style={{margin: 20, textAlign: 'right'}}>
-              {
-                !!pasoPrev ?
-                <button id="prev" className="btn btn-primary" onClick={this.goPrev} > {'<'} <span className="nombrePaso">{ pasoPrev.nombre || "Prev" }</span></button>
-                :null
-              }
-              
-              { !!pasoNext ? 
-                <button id="next" className="btn btn-primary" onClick={this.goNext} > <span className="nombrePaso">{ pasoNext.nombre || "Next" }</span> {'>'} </button>
-                :
-                <button id="finish" className="btn btn-success" onClick={this.goFinish} > Finish </button>
-              }
-            </div>
-
-          </div>
-        )
-      }
-    }
-    
-    class Paso extends React.Component {
-      constructor(props) {
-        super(props)
-        this.state = {}
-      }
-      
-      componentDidMount() {
-        console.log( 'this.props.paso', this.props.paso );
-      }
-
-      render() {
-        const bloques = this.props.paso.bloques;
-        const style = { display: 'block'};
-        
-        if( this.props.paso.isVisible === false ){
-          style.display = 'none';
-        }
-
-        return (
-          <div className="paso" style={style}>
-            <h2> {this.props.paso.nombre}</h2>
-            <div className="container"> 
-              {bloques.map( bloque =>  <Bloque key={bloque.idPasosHasBloques} bloque={bloque} onChangeCampo={this.props.onChangeCampo} /> )}
-            </div>
-          </div>
-        )
-      }
-    }
-
-    class Bloque extends React.Component {
-      constructor(props) {
-        super(props)
-        this.state = {}
-      }
-      
-      componentDidMount() {
-        console.log( 'this.props.bloque', this.props.bloque );
-      }
-
-      render() {
-        const campos = this.props.bloque.campos.sort( (a,b) => (parseInt(a.row) - parseInt(b.row)) );
-        
-        var rows = [];
-        campos.forEach( c =>{
-          var row = parseInt(c.row);
-          if( Array.isArray(rows[row]) ){
-            rows[row].push(c);
-          }else{
-            rows[row] = [ c ];
-          }
-        })
-
-        return (
-          <div>
-            <h3> {this.props.bloque.nombre}</h3>
-            <div className="container">
-              {rows.map( (row,i) => 
-                <div className="row" key={i}> 
-                  {row.map( campo =>
-                    <div className="col" key={campo.idUnidadCampo}>
-                      <Campo key={campo.idUnidadCampo} campo={campo} onChangeCampo={this.props.onChangeCampo} />
-                    </div>
-                  )} 
-                </div>
-              )}
-              { /* campos.map( campo =>  <Campo key={campo.idUnidadCampo} campo={campo} onChangeCampo={this.props.onChangeCampo} /> ) */ }
-            </div>
-          </div>
-        )
-      }
-    }
-
-    
-
-    class Campo extends React.Component {
-      constructor(props) {
-        super(props)
-        this.state = { value : ''}
-      }
-
-      componentDidMount() {
-        console.log('this.props.campo', this.props.campo);
-      }
-
-      handleChange = (event) => {
-        this.setState({value: event.target.value});
-        const campo = this.props.campo;
-        campo._value = event.target.value;
-        //console.log('handleChange', campo.nombre, campo._value);
-        
-        this.props.onChangeCampo(campo);
-      }
-
-      render() {
-        const campo = this.props.campo;
-        const style = {};
-
-        if( campo.isVisible === false ){
-          style.display = 'none';
-        }
-
-        const isReady = campo.isReady !== false;
-        console.log( campo.nombre, 'isRequired', campo.isRequired, 'isVisible', campo.isVisible, 'isReady', isReady);
-
-
-        return (
-          <div className="form-group" style={style}>
-            <label>{campo.nombre}</label>
-            { (()=>{ 
-
-              switch (campo.type) {
-                case 'select':
-                  return <CampoSelect value={this.state.value} options={campo.options} onChange={this.handleChange} isReady={isReady} />
-                case 'radios':
-                  return <CampoRadios value={this.state.value} options={campo.options} onChange={this.handleChange} nombre={campo.nombre} isReady={isReady} />
-                case 'number':
-                  return <CampoNumber value={this.state.value} onChange={this.handleChange} isReady={isReady} />
-                case 'textarea':
-                  return <textarea className={"form-control" + (!isReady ? ' is-invalid':'') } value={this.state.value} onChange={this.handleChange} />
-                case 'file':
-                  return <input type="file" className={"form-control" + (!isReady ? ' is-invalid':'') } value={this.state.value} onChange={this.handleChange} />
-                case 'text':
-                  return <input className={"form-control" + (!isReady ? ' is-invalid':'') } type="text" value={this.state.value} onChange={this.handleChange} />
-                case 'lavel':
-                  return <CampoLavel value={campo.value} />
-                default:
-                  return <input className={"form-control" + (!isReady ? ' is-invalid':'') } type="text" value={this.state.value} onChange={this.handleChange} />
-              }
-
-              })() }
-            {/*<input type="text" value={this.state.value} onChange={this.handleChange} />*/}
-            <div className="invalid-feedback">
-              { campo.invalidFeedback || "Campo requerido"}
-            </div>
-          </div>
-        )
-      }
-    }
 
     // ReactDOM.render(<Formulario formulario={ formtest1.formulario } />, document.querySelector("#containerTest1"))
 
     // ReactDOM.render(<Formulario formulario={ formtest2.formulario } />, document.querySelector("#containerTest2"))
-
-    
    
     var formsArr = [formtest1,formtest2,formtest3];
 
     var array = document.getElementsByClassName("btn-example");
     for (let i = 0; i < array.length; i++) {
       array[i].addEventListener('click', function () {
-        //console.log('form', formsArr[this.dataset.exampleId].formulario);
-        let formatJSON = JSON.stringify(formsArr[this.dataset.exampleId].formulario, null, '  ');
-        document.getElementById('jsonContainer').innerHTML = formatJSON;
-        ReactDOM.render(<Formulario key={this.dataset.exampleId} formulario={ formsArr[this.dataset.exampleId].formulario } />, document.querySelector("#formContainer"));
+        
+        activeForm = formsArr[this.dataset.exampleId].formulario;
+
+        let formatJSON = JSON.stringify(activeForm, null, '  ');
+        document.getElementById('jsonContainer').value = formatJSON;
+        console.clear();
+
+        console.log(activeForm.idFormulario);
+        
+        ReactDOM.render(<Formulario key={activeForm.idFormulario} formulario={ activeForm } debug={debug} />, document.querySelector("#formContainer"));
+        
+
       });
     }
 
-    let formatJSON = JSON.stringify(formsArr[0].formulario, null, '  ');
+    let formatJSON = JSON.stringify(activeForm, null, '  ');
     document.getElementById('jsonContainer').innerHTML = formatJSON;
-    ReactDOM.render(<Formulario key={0} formulario={ formsArr[0].formulario } />, document.querySelector("#formContainer"));
+    ReactDOM.render(<Formulario key={activeForm.idFormulario} formulario={ activeForm } debug={debug} />, document.querySelector("#formContainer"));
 
   </script>
   
+  <script type="text/babel">
+    var editor = document.getElementById('jsonContainer');
+    var decodeError = false;
+    editor.addEventListener('keyup', function(e){
+      
+      try{
+
+        var newConfig = JSON.parse(this.value);
+
+        console.clear();
+        ReactDOM.render(<Formulario key={(new Date()).valueOf()} formulario={ newConfig } debug={debug} />, document.querySelector("#formContainer"));
+
+        activeForm = newConfig;
+
+        if( decodeError ){
+          this.style.borderColor = 'black';
+          this.style.boxShadow = '0 0 10px whitesmoke';  
+          decodeError = false;
+        }
+
+      }catch(e){
+        console.log(e);
+        
+        this.style.borderColor = 'red';
+        this.style.boxShadow = '0 0 10px red';
+        decodeError = true;
+      }
+
+    });
+
+    var checkbox = document.getElementById("debugCheck");
+
+    checkbox.addEventListener( 'change', function() {
+
+        debug = this.checked;
+
+        console.clear();
+        ReactDOM.render(<Formulario key={(new Date()).valueOf()} formulario={ activeForm } debug={debug} />, document.querySelector("#formContainer"));
+
+    });
+
+  </script>
+
 </body>
 </html>

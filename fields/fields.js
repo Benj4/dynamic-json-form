@@ -7,6 +7,20 @@
      * 
      * */
 
+    class CampoLavel extends React.Component {
+      constructor(props) {
+        super(props)
+        this.state = {}
+      }
+      render(){
+        const { value } = this.props;
+        return (
+          <div> <label> {value} </label> </div>
+        )
+      }
+
+    }
+
     class CampoSelect extends React.Component {
       constructor(props) {
         super(props)

@@ -1,6 +1,6 @@
 var formtest2 = {
       "formulario" : {
-        "idFormulario" : 1,
+        "idFormulario" : 2,
         "nombre" : "Formulario Prueba 2",
         "pasos" : [
           {
